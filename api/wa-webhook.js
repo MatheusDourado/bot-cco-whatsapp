@@ -12,24 +12,16 @@ const sign = (token, url, params) => {
 };
 const twiml = msg => `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${msg}</Message></Response>`;
 
-/** Timestamp SP sem depender de pt-BR/ICU */
+/* Timestamp SP sem Intl (Brasil sem DST desde 2019) */
 function stampSP(date = new Date()) {
-    const fmt = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Sao_Paulo",
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-        hour12: false
-    });
-    const p = Object.fromEntries(fmt.formatToParts(date).map(x => [x.type, x.value]));
-    return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second} GMT-3`;
+    const d = new Date(date.getTime() - 3 * 60 * 60 * 1000); // UTC-3
+    const pad = n => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} GMT-3`;
 }
 
 export default async function handler(req, res) {
     try {
-        if (req.method !== "POST") {
-            res.setHeader("Allow", "POST");
-            return res.status(405).end("Method Not Allowed");
-        }
+        if (req.method !== "POST") { res.setHeader("Allow","POST"); return res.status(405).end("Method Not Allowed"); }
 
         const proto = req.headers["x-forwarded-proto"] || "https";
         const host  = req.headers["x-forwarded-host"] || req.headers.host;
@@ -40,7 +32,7 @@ export default async function handler(req, res) {
         const body   = (params.Body || "").toString().trim();
         const from   = (params.From || "").toString();
 
-        // DEV: pular verificação
+        // Dev: pular verificação
         if (process.env.TWILIO_SKIP_VERIFY === "true") {
             const reply = `Recebido em ${stampSP()}. Você disse: "${body || "—"}" ✅`;
             console.log("DEV inbound:", { from, body });
@@ -48,17 +40,15 @@ export default async function handler(req, res) {
             return res.status(200).send(twiml(reply));
         }
 
-        // Produção: valida assinatura
+        // Produção: valida Twilio
         const token = process.env.TWILIO_AUTH_TOKEN;
         if (!token) return res.status(500).send("Missing TWILIO_AUTH_TOKEN");
-
         const signature = req.headers["x-twilio-signature"];
         const expected  = sign(token, publicUrl, params);
         if (signature !== expected) return res.status(403).send("Invalid signature");
 
         const reply = `Recebido em ${stampSP()}. Você disse: "${body || "—"}" ✅`;
         console.log("Inbound:", { from, body });
-
         res.setHeader("Content-Type", "text/xml");
         return res.status(200).send(twiml(reply));
     } catch (err) {
