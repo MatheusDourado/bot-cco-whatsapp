@@ -1,36 +1,33 @@
 import crypto from 'crypto';
 import { parse as parseQS } from 'querystring';
+import { menu } from '../src/flows/mainMenu.js';
+import { handle as flowOpen } from '../src/flows/openTicket.js';
+import * as Session from '../src/session.js';
 
-/* ---- utils ---- */
-const readRaw = (req) =>
-	new Promise((res, rej) => {
+/* --- utils compactos --- */
+const readRaw = (r) =>
+	new Promise((re, rj) => {
 		let d = '';
-		req.on('data', (c) => (d += c));
-		req.on('end', () => res(d));
-		req.on('error', rej);
+		r.on('data', (c) => (d += c))
+			.on('end', () => re(d))
+			.on('error', rj);
 	});
-const sign = (token, url, params) => {
-	const sorted = Object.keys(params)
-		.sort()
-		.map((k) => k + params[k])
-		.join('');
-	return crypto
-		.createHmac('sha1', token)
-		.update(url + sorted, 'utf8')
+const sign = (t, u, p) =>
+	crypto
+		.createHmac('sha1', t)
+		.update(
+			u +
+				Object.keys(p)
+					.sort()
+					.map((k) => k + p[k])
+					.join(''),
+			'utf8',
+		)
 		.digest('base64');
-};
-const twiml = (msg) =>
-	`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${msg}</Message></Response>`;
+		
+const twiml = (m) => `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${m}</Message></Response>`;
 
-/* timestamp SP sem Intl */
-function stampSP(now = new Date()) {
-	const d = new Date(now.getTime() - 3 * 3600 * 1000); // UTC-3
-	const p = (n) => String(n).padStart(2, '0');
-	return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(
-		d.getHours(),
-	)}:${p(d.getMinutes())}:${p(d.getSeconds())} GMT-3`;
-}
-
+/* --- webhook --- */
 export default async function handler(req, res) {
 	try {
 		if (req.method !== 'POST') {
@@ -42,45 +39,35 @@ export default async function handler(req, res) {
 		const host = req.headers['x-forwarded-host'] || req.headers.host;
 		const publicUrl = `${proto}://${host}/api/wa-webhook`;
 
-		// ---- bypass DEV por query/header/env ----
-		const urlObj = new URL(req.url, `${proto}://${host}`);
-		const devSkip =
-			urlObj.searchParams.get('skip') === '1' ||
-			req.headers['x-dev-skip'] === '1' ||
-			process.env.TWILIO_SKIP_VERIFY === 'true';
-
 		const raw = await readRaw(req);
-		const params = parseQS(raw || '');
-		const body = (params.Body || '').toString().trim();
+		const p = parseQS(raw || '');
+		const from = (p.From || '').toString(); // ex.: whatsapp:+5561...
+		const body = (p.Body || '').toString().trim();
 
-		if (devSkip) {
-			const reply = `Recebido em ${stampSP()}. Você disse: "${
-				body || '—'
-			}" ✅`;
-			console.log('DEV inbound (skip):', { body });
+		/* bypass dev */
+		const urlObj = new URL(req.url, `${proto}://${host}`);
+		if (urlObj.searchParams.get('skip') === '1') {
 			res.setHeader('Content-Type', 'text/xml');
-			return res.status(200).send(twiml(reply));
+			return res.status(200).send(twiml(`(dev) eco: ${body}`));
 		}
 
-		// ---- produção: valida assinatura Twilio ----
-		const token = process.env.TWILIO_AUTH_TOKEN;
-		if (!token) return res.status(500).send('Missing TWILIO_AUTH_TOKEN');
-
-		const signature = req.headers['x-twilio-signature'] || '';
-		const expected = sign(token, publicUrl, params);
-		if (signature !== expected)
+		/* valida Twilio */
+		const exp = sign(process.env.TWILIO_AUTH_TOKEN, publicUrl, p);
+		if (req.headers['x-twilio-signature'] !== exp)
 			return res.status(403).send('Invalid signature');
 
-		const reply = `Recebido em ${stampSP()}. Você disse: "${
-			body || '—'
-		}" ✅`;
+		/* roteamento simples */
+		let reply;
+		if (/^(1|abrir)/i.test(body) || Session.get(from)?.state) {
+			reply = await flowOpen(from, body);
+		} else {
+			reply = menu();
+		}
+
 		res.setHeader('Content-Type', 'text/xml');
 		return res.status(200).send(twiml(reply));
-	} catch (err) {
-		console.error('Webhook ERROR:', {
-			msg: err?.message,
-			stack: err?.stack,
-		});
+	} catch (e) {
+		console.error('Webhook ERROR', e);
 		return res.status(500).send('Internal error');
 	}
 }
