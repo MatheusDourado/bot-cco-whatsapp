@@ -57,7 +57,7 @@ function authHeaders() {
 		'Authorization': `Bearer eyJhbGciOiJIUzUxMiJ9.eyJleHAiOjE3NTQ2MDA0NTQsIm5hbWUiOiJNYXRoZXVzIERvdXJhZG8gVmlhbmEiLCJjb250cm9sIjoiN2IyMjY5NzAyMjNhMjIzMTM3MzIyZTMxMzkyZTMxMzAzMTJlMzEzNTM2MjIyYzIyNjg2ZjczNzQyMjNhMjIzMTM3MzIyZTMxMzkyZTMxMzAzMTJlMzEzNTM2MjI3ZCIsImlzc3VlZEF0IjoxNzU0NTk2ODU0MjI5LCJsb2NhbGUiOiJwdF9CUiIsImNsaWVudF9pZCI6IkF0aXZvIiwiZXhwaXJlc0F0IjoxNzU0NjAwNDU0MjI5LCJ0aW1lb3V0IjozNjAwLCJ1c2VybmFtZSI6IkNDT1xcbWF0aGV1cy52aWFuYSJ9.-ob3yR0TZ0Sf7OSx9d7TFbMoOm5u_LGM5Jj182e0yTNlHXnjPC7PPqHa7I7a0_eG1DxCQpbRNCkGYqFTN_ngbQ`,
 	};
 }
-
+ 
 /* ------------------------------------------------------------------
    Consulta usuário pelo login
    ------------------------------------------------------------------ */
