@@ -77,12 +77,13 @@ export async function findUserByLogin(login) {
 			},
 		},
 	);
+	
+	console.log('findUserByLogin', { login, res });
 
 	if (!res.ok) return null;
 
 	const data = await res.json();
 
-	console.log('findUserByLogin', { login, data });
 
 	return Array.isArray(data) && data.length ? data.payload[0] : null; // contém idempregado
 }
