@@ -51,11 +51,11 @@ async function ensureSession() {
 	return sessionId;
 }
 
-function authHeaders() {
+async function authHeaders() {
 	return {
 		'Content-Type': 'application/json',
 		//Cookie: `JSESSIONID=${sessionId}`,
-		'Authorization': `Bearer ${sessionId}`,
+		'Authorization': `Bearer ${await ensureSession()}`,
 	};
 }
 
@@ -63,8 +63,6 @@ function authHeaders() {
    Consulta usuário pelo login
    ------------------------------------------------------------------ */
 export async function findUserByLogin(login) {
-	await ensureSession();
-
 	const res = await fetch(
 		`${BASE}/cit-esi-web/rest/dynamic/integracoes/consultas/list.json`,
 		{
