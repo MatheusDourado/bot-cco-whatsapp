@@ -54,7 +54,8 @@ async function ensureSession() {
 function authHeaders() {
 	return {
 		'Content-Type': 'application/json',
-		Cookie: `JSESSIONID=${sessionId}`,
+		//Cookie: `JSESSIONID=${sessionId}`,
+		'Authorization': `Bearer ${sessionId}`,
 	};
 }
 
