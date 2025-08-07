@@ -1,9 +1,9 @@
 const BASE = process.env.CITSMART_BASE;
 const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE;
-const USER = process.env.CITSMART_USER; 
-const PASS = process.env.CITSMART_PASS; 
-const ACTIVITY_ID = process.env.ACTIVITY_ID; 
-const CONTRACT_ID = process.env.CONTRACT_ID; 
+const USER = process.env.CITSMART_USER;
+const PASS = process.env.CITSMART_PASS;
+const ACTIVITY_ID = process.env.ACTIVITY_ID;
+const CONTRACT_ID = process.env.CONTRACT_ID;
 const CLIENT = 'Ativo';
 const LANG = 'pt_BR';
 
@@ -14,7 +14,8 @@ let tokenExp = 0;
 async function ensureToken() {
 	if (cachedToken && Date.now() < tokenExp - 60_000) return cachedToken;
 
-	const res = await fetch(`${BASE}/${PROVIDER_BASE}/services/login`, { // => CITSMART 9
+	const res = await fetch(`${BASE}/${PROVIDER_BASE}/services/login`, {
+		// => CITSMART 9
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
@@ -24,13 +25,17 @@ async function ensureToken() {
 			password: PASS,
 		}),
 	});
+
 	if (!res.ok) throw new Error(`Login Citsmart ${res.status}`);
 
-	const { access_token, expires_in = 300 } = await res.json();
-	cachedToken = access_token;
-	tokenExp = Date.now() + expires_in * 1000;
+	const xml = await res.text();
+	const match = xml.match(/<SessionID>([^<]+)<\/SessionID>/i);
 
-	return cachedToken;
+	if (!match)	throw new Error('SessionID não encontrado na resposta de login');
+
+	cachedSession = match[1].trim();
+	sessionExp = Date.now() + 10 * 60 * 1000; // Citsmart v9 costuma expirar em 10 min
+	return cachedSession;
 }
 
 /* --- helpers --- */
