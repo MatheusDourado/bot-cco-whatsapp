@@ -65,7 +65,7 @@ export async function findUserByLogin(login) {
 	await ensureSession();
 
 	const res = await fetch(
-		`${BASE}/lowcode/rest/dynamic/integracoes/consultas/list`,
+		`${BASE}/cit-esi-web/rest/dynamic/integracoes/consultas/list.json`,
 		{
 			method: 'POST',
 			headers: authHeaders(),
@@ -82,7 +82,7 @@ export async function findUserByLogin(login) {
 
 	console.log('findUserByLogin', { login, data });
 
-	return Array.isArray(data) && data.length ? data[0] : null; // contém idempregado
+	return Array.isArray(data) && data.length ? data.payload[0] : null; // contém idempregado
 }
 
 /* ------------------------------------------------------------------
