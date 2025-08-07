@@ -1,23 +1,26 @@
-const BASE = process.env.CITSMART_BASE;
-const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE;
-const USER = process.env.CITSMART_USER;
-const PASS = process.env.CITSMART_PASS;
+const BASE = process.env.CITSMART_BASE; 
+const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE; 
+const USER = process.env.CITSMART_USER; 
+const PASS = process.env.CITSMART_PASS; 
 const ACTIVITY_ID = process.env.ACTIVITY_ID;
 const CONTRACT_ID = process.env.CONTRACT_ID;
 const CLIENT = 'Ativo';
 const LANG = 'pt_BR';
 
-let cachedToken = null;
-let tokenExp = 0;
+/* ------------ cache ------------ */
+let cookieJar = ''; // "JSESSIONID=...; AUTH-TOKEN=..."
+let cookieExp = 0;
 
-/* --- login / token --- */
-async function ensureToken() {
-	if (cachedToken && Date.now() < tokenExp - 60_000) return cachedToken;
+/* ------------ login (pega cookies) ------------ */
+async function ensureCookies() {
+	if (cookieJar && Date.now() < cookieExp - 60_000) return cookieJar;
 
 	const res = await fetch(`${BASE}/${PROVIDER_BASE}/services/login`, {
-		// => CITSMART 9
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: {
+			'Content-Type': 'application/json',
+			Accept: 'application/xml',
+		},
 		body: JSON.stringify({
 			clientId: CLIENT,
 			language: LANG,
@@ -26,34 +29,50 @@ async function ensureToken() {
 		}),
 	});
 
-	if (!res.ok) throw new Error(`Login Citsmart ${res.status}`);
+	if (!res.ok) {
+		const txt = await res.text().catch(() => '');
+		throw new Error(`Login Citsmart ${res.status} – ${txt.slice(0, 120)}`);
+	}
 
-	const xml = await res.text();
-	const match = xml.match(/<SessionID>([^<]+)<\/SessionID>/i);
+	/* extrai Set-Cookie */
+	const rawCookies =
+		res.headers.getSetCookie?.() || 
+		res.headers.raw()['set-cookie'] || 
+		[];
+	const jsess = rawCookies.find((c) =>
+		c.toLowerCase().startsWith('jsessionid='),
+	);
+	const auth = rawCookies.find((c) =>
+		c.toLowerCase().startsWith('auth-token='),
+	);
 
-	if (!match)	throw new Error('SessionID não encontrado na resposta de login');
+	if (!jsess) throw new Error('JSESSIONID não veio no Set-Cookie');
 
-	cachedSession = match[1].trim();
-	sessionExp = Date.now() + 10 * 60 * 1000; // Citsmart v9 costuma expirar em 10 min
-	return cachedSession;
+	cookieJar = [jsess.split(';')[0], auth?.split(';')[0]]
+		.filter(Boolean)
+		.join('; ');
+	cookieExp = Date.now() + 10 * 60 * 1000; // 10 min (ajuste se preciso)
+
+	return cookieJar;
 }
 
-/* --- helpers --- */
-function authHeaders(token) {
+/* ------------ headers helper ------------ */
+function authHeaders() {
 	return {
 		'Content-Type': 'application/json',
-		Authorization: `Bearer ${token}`,
+		Cookie: cookieJar, // JSESSIONID e AUTH-TOKEN
 	};
 }
 
-/* --- consultar usuário por login --- */
+/* ------------ consultar usuário ------------ */
 export async function findUserByLogin(login) {
-	const token = await ensureToken();
+	await ensureCookies();
+
 	const res = await fetch(
 		`${BASE}/lowcode/rest/dynamic/integracoes/consultas/list`,
 		{
 			method: 'POST',
-			headers: authHeaders(token),
+			headers: authHeaders(),
 			body: JSON.stringify({
 				SQLName: 'consulta_usuario_login',
 				dynamicModel: { login },
@@ -64,12 +83,12 @@ export async function findUserByLogin(login) {
 
 	const data = await res.json();
 
-	return Array.isArray(data) && data.length ? data[0] : null;
+	return Array.isArray(data) && data.length ? data[0] : null; 
 }
 
-/* --- abrir ticket --- */
+/* ------------ abrir ticket ------------ */
 export async function openTicket({ requesterId, description }) {
-	const token = await ensureToken();
+	await ensureCookies();
 	const body = {
 		requesterId,
 		activityId: ACTIVITY_ID,
@@ -79,11 +98,7 @@ export async function openTicket({ requesterId, description }) {
 	};
 	const res = await fetch(
 		`${BASE}/${PROVIDER_BASE}/webmvc/servicerequestincident/create`,
-		{
-			method: 'POST',
-			headers: authHeaders(token),
-			body: JSON.stringify(body),
-		},
+		{ method: 'POST', headers: authHeaders(), body: JSON.stringify(body) },
 	);
 
 	if (!res.ok) throw new Error(`Criar ticket ${res.status}`);
