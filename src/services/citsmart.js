@@ -26,7 +26,6 @@ async function ensureSession() {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
-			Accept: '/*',
 		},
 		body: JSON.stringify({
 			clientId: CLIENT,
