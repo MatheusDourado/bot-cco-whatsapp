@@ -41,6 +41,8 @@ async function ensureSession() {
 	}
 
 	const xml = await res.text();
+	console.log("XML LOGIN", xml)
+
 	const m = xml.match(/<SessionID>([^<]+)<\/SessionID>/i);
 	if (!m) throw new Error('SessionID não encontrado na resposta de login');
 
