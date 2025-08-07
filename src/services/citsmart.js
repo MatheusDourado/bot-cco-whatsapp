@@ -1,11 +1,11 @@
-const BASE = process.env.CITSMART_BASE; 
-const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE; 
+const BASE = process.env.CITSMART_BASE;
+const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE;
 
 /* domínio que antecede o usuário (mude se necessário) */
 const DOMAIN = 'CCO';
 
 let USER = process.env.CITSMART_USER || '';
-if (!USER.includes('\\')) USER = `${DOMAIN}\\${USER}`; 
+if (!USER.includes('\\')) USER = `${DOMAIN}\\${USER}`;
 
 const PASS = process.env.CITSMART_PASS;
 const ACTIVITY_ID = process.env.ACTIVITY_ID;
@@ -41,7 +41,7 @@ async function ensureSession() {
 	}
 
 	const xml = await res.text();
-	console.log("XML LOGIN", xml)
+	console.log('XML LOGIN', xml);
 
 	const m = xml.match(/<SessionID>([^<]+)<\/SessionID>/i);
 	if (!m) throw new Error('SessionID não encontrado na resposta de login');
@@ -69,10 +69,12 @@ export async function findUserByLogin(login) {
 		{
 			method: 'POST',
 			headers: authHeaders(),
-			body: JSON.stringify({
+			body: {
 				SQLName: 'consulta_usuario_login',
-				dynamicModel: { login },
-			}),
+				dynamicModel: {
+					login: 'matheus.viana',
+				},
+			},
 		},
 	);
 
