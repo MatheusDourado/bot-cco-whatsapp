@@ -55,7 +55,7 @@ async function authHeaders() {
 	return {
 		'Content-Type': 'application/json',
 		//Cookie: `JSESSIONID=${sessionId}`,
-		'Authorization': `Bearer ${await ensureSession()}`,
+		'Authorization': `Bearer eyJhbGciOiJIUzUxMiJ9.eyJleHAiOjE3NTQ2MDAwOTksIm5hbWUiOiJNYXRoZXVzIERvdXJhZG8gVmlhbmEiLCJjb250cm9sIjoiN2IyMjY5NzAyMjNhMjIzMTM3MzIyZTMxMzkyZTMxMzIzMzJlMzQzOTIyMmMyMjY4NmY3Mzc0MjIzYTIyMzEzNzMyMmUzMTM5MmUzMTMyMzMyZTM0MzkyMjdkIiwiaXNzdWVkQXQiOjE3NTQ1OTY0OTkyODksImxvY2FsZSI6InB0X0JSIiwiY2xpZW50X2lkIjoiQXRpdm8iLCJleHBpcmVzQXQiOjE3NTQ2MDAwOTkyODksInRpbWVvdXQiOjM2MDAsInVzZXJuYW1lIjoiQ0NPXFxtYXRoZXVzLnZpYW5hIn0.uoUkBTBAjNVEvRIu4OzwU5-64gOwvwO05lonzc1wGROqVeoxRUuBS7ULykbHSUd0vPnoZRC_eXEkys8Egs1wNQ`,
 	};
 }
 
