@@ -139,8 +139,8 @@ export async function openTicket({ requesterId, description }) {
 	const url = `${BASE}/${PROVIDER_BASE}/webmvc/servicerequestincident/create`; 
 	const body = {
 		requesterId,
-		activityId: ACTIVITY_ID,
-		contractId: CONTRACT_ID,
+		activityId: 1000075, //ACTIVITY_ID,
+		contractId: 1000000, //CONTRACT_ID,
 		description,
 		builderObjects: {},
 	}; 

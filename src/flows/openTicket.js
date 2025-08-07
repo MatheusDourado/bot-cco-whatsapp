@@ -20,7 +20,7 @@ export async function handle(from, text) {
 
 		set(from, { state: STATES.WAIT_DESC, user });
 		return `Usuário localizado: *${
-			user.nomeCompleto ?? user.nome
+			user.nome_completo ?? user.nome
 		}*.\nDescreva o problema que gostaria de abrir como chamado.`;
 	}
 
