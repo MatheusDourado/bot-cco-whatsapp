@@ -1,4 +1,5 @@
-const BASE = process.env.CITSMART_BASE 
+const BASE = process.env.CITSMART_BASE;
+const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE;
 const USER = process.env.CITSMART_USER; 
 const PASS = process.env.CITSMART_PASS; 
 const CLIENT = 'Ativo';
@@ -11,7 +12,7 @@ let tokenExp = 0;
 async function ensureToken() {
 	if (cachedToken && Date.now() < tokenExp - 60_000) return cachedToken;
 
-	const res = await fetch(`${BASE}/citsmart/services/login`, { // => CITSMART 9
+	const res = await fetch(`${BASE}/${PROVIDER_BASE}/services/login`, { // => CITSMART 9
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
@@ -26,7 +27,7 @@ async function ensureToken() {
 	const { access_token, expires_in = 300 } = await res.json();
 	cachedToken = access_token;
 	tokenExp = Date.now() + expires_in * 1000;
-	
+
 	return cachedToken;
 }
 
@@ -70,7 +71,7 @@ export async function openTicket({ requesterId, description }) {
 		builderObjects: {},
 	};
 	const res = await fetch(
-		`${BASE}/citsmart/webmvc/servicerequestincident/create`,
+		`${BASE}/${PROVIDER_BASE}/webmvc/servicerequestincident/create`,
 		{
 			method: 'POST',
 			headers: authHeaders(token),
