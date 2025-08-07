@@ -69,7 +69,23 @@ export async function findUserByLogin(login) {
 		`${BASE}/cit-esi-web/rest/dynamic/integracoes/consultas/list.json`,
 		{
 			method: 'POST',
-			headers: authHeaders(),
+			headers: {
+				'authorization': `Bearer eyJhbGciOiJIUzUxMiJ9.eyJleHAiOjE3NTQ2MDA0NTQsIm5hbWUiOiJNYXRoZXVzIERvdXJhZG8gVmlhbmEiLCJjb250cm9sIjoiN2IyMjY5NzAyMjNhMjIzMTM3MzIyZTMxMzkyZTMxMzAzMTJlMzEzNTM2MjIyYzIyNjg2ZjczNzQyMjNhMjIzMTM3MzIyZTMxMzkyZTMxMzAzMTJlMzEzNTM2MjI3ZCIsImlzc3VlZEF0IjoxNzU0NTk2ODU0MjI5LCJsb2NhbGUiOiJwdF9CUiIsImNsaWVudF9pZCI6IkF0aXZvIiwiZXhwaXJlc0F0IjoxNzU0NjAwNDU0MjI5LCJ0aW1lb3V0IjozNjAwLCJ1c2VybmFtZSI6IkNDT1xcbWF0aGV1cy52aWFuYSJ9.-ob3yR0TZ0Sf7OSx9d7TFbMoOm5u_LGM5Jj182e0yTNlHXnjPC7PPqHa7I7a0_eG1DxCQpbRNCkGYqFTN_ngbQ`,
+				"date": "Thu, 07 Aug 2025 19:58:10 GMT",
+				"content-type": "application/json;charset=UTF-8",
+				"access-control-allow-headers": "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+				"x-xss-protection": "1; mode=block",
+				"referrer-policy": "strict-origin",
+				"content-security-policy": "frame-ancestors 'self'",
+				"strict-transport-security": "max-age=31536000; includeSubDomains",
+				"access-control-allow-methods": "GET, PUT, POST, DELETE, PATCH, OPTIONS",
+				"x-powered-by": "Undertow/1",
+				"x-frame-options": "SAMEORIGIN",
+				"access-control-allow-origin": "*",
+				"access-control-allow-credentials": "true",
+				"x-content-type-options": "nosniff",
+				"access-control-max-age": "1728000"
+			},
 			body: {
 				SQLName: 'consulta_usuario_login',
 				dynamicModel: {
