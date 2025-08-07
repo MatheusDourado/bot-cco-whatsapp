@@ -1,17 +1,24 @@
 const BASE = process.env.CITSMART_BASE; 
 const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE; 
-const USER = process.env.CITSMART_USER; 
-const PASS = process.env.CITSMART_PASS; 
+
+/* domínio que antecede o usuário (mude se necessário) */
+const DOMAIN = 'CCO';
+
+let USER = process.env.CITSMART_USER || '';
+if (!USER.includes('\\')) USER = `${DOMAIN}\\${USER}`; 
+
+const PASS = process.env.CITSMART_PASS;
 const ACTIVITY_ID = process.env.ACTIVITY_ID;
 const CONTRACT_ID = process.env.CONTRACT_ID;
 const CLIENT = 'Ativo';
 const LANG = 'pt_BR';
 
-/* cache in-memory -------------------------------------------------------- */
-let sessionId = ''; // valor do <SessionID>
-let sessionExp = 0; // epoch ms de expiração (10 min)
+/* ------------------------------------------------------------------
+   Cache in-memory do SessionID
+   ------------------------------------------------------------------ */
+let sessionId = '';
+let sessionExp = 0; // epoch ms
 
-/* -------------------------- login / SessionID -------------------------- */
 async function ensureSession() {
 	if (sessionId && Date.now() < sessionExp - 60_000) return sessionId;
 
@@ -19,7 +26,7 @@ async function ensureSession() {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
-			Accept: 'application/xml',
+			Accept: '/*',
 		},
 		body: JSON.stringify({
 			clientId: CLIENT,
@@ -36,15 +43,13 @@ async function ensureSession() {
 
 	const xml = await res.text();
 	const m = xml.match(/<SessionID>([^<]+)<\/SessionID>/i);
-
-	if (!m) throw new Error('SessionID não encontrado no XML de login');
+	if (!m) throw new Error('SessionID não encontrado na resposta de login');
 
 	sessionId = m[1].trim();
-	sessionExp = Date.now() + 10 * 60 * 1000; // 10 min (ajuste se outro TTL)
+	sessionExp = Date.now() + 10 * 60 * 1000; // 10 min (ajuste se diferente)
 	return sessionId;
 }
 
-/* monta headers com cookie JSESSIONID ----------------------------------- */
 function authHeaders() {
 	return {
 		'Content-Type': 'application/json',
@@ -52,9 +57,12 @@ function authHeaders() {
 	};
 }
 
-/* ----------------------- consultar usuário ----------------------------- */
+/* ------------------------------------------------------------------
+   Consulta usuário pelo login
+   ------------------------------------------------------------------ */
 export async function findUserByLogin(login) {
 	await ensureSession();
+
 	const res = await fetch(
 		`${BASE}/lowcode/rest/dynamic/integracoes/consultas/list`,
 		{
@@ -74,9 +82,12 @@ export async function findUserByLogin(login) {
 	return Array.isArray(data) && data.length ? data[0] : null; // contém idempregado
 }
 
-/* ----------------------- abrir ticket ---------------------------------- */
+/* ------------------------------------------------------------------
+   Abre ticket
+   ------------------------------------------------------------------ */
 export async function openTicket({ requesterId, description }) {
 	await ensureSession();
+
 	const body = {
 		requesterId,
 		activityId: ACTIVITY_ID,
@@ -84,14 +95,13 @@ export async function openTicket({ requesterId, description }) {
 		description,
 		builderObjects: {},
 	};
+
 	const res = await fetch(
 		`${BASE}/${PROVIDER_BASE}/webmvc/servicerequestincident/create`,
 		{ method: 'POST', headers: authHeaders(), body: JSON.stringify(body) },
 	);
 
 	if (!res.ok) throw new Error(`Criar ticket ${res.status}`);
-
 	const json = await res.json();
-
 	return json.idSolicitacaoServico ?? json.id ?? '???';
 }
