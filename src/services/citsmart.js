@@ -80,6 +80,8 @@ export async function findUserByLogin(login) {
 
 	const data = await res.json();
 
+	console.log('findUserByLogin', { login, data });
+
 	return Array.isArray(data) && data.length ? data[0] : null; // contém idempregado
 }
 
