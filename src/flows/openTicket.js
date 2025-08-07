@@ -1,69 +1,113 @@
-import { findUserByLogin, openTicket } from '../services/citsmart.js';
-import { clear, get, set } from '../session.js';
+const BASE = process.env.CITSMART_BASE; 
+const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE; 
+const USER = process.env.CITSMART_USER; 
+const PASS = process.env.CITSMART_PASS; 
+const ACTIVITY_ID = process.env.ACTIVITY_ID;
+const CONTRACT_ID = process.env.CONTRACT_ID;
+const CLIENT = 'Ativo';
+const LANG = 'pt_BR';
 
-const STATES = {
-	WAIT_LOGIN: 'WAIT_LOGIN',
-	WAIT_DESC: 'WAIT_DESC',
-};
+/* cache em memória */
+let cachedCookie = ''; // "JSESSIONID=...; AUTH-TOKEN=..."
+let cookieExp = 0; // epoch ms
 
-export async function handle(from, text) {
-	const sess = get(from);
+/* ---------- LOGIN (pega cookies) ---------- */
+async function ensureCookies() {
+	if (cachedCookie && Date.now() < cookieExp - 60_000) return cachedCookie;
 
-	/* --- início do fluxo --- */
-	if (!sess) {
-		set(from, { state: STATES.WAIT_LOGIN });
+	const res = await fetch(`${BASE}/${PROVIDER_BASE}/services/login`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Accept: 'application/xml',
+		},
+		body: JSON.stringify({
+			clientId: CLIENT,
+			language: LANG,
+			userName: USER,
+			password: PASS,
+		}),
+	});
 
-		return 'Informe apenas seu *login* de rede (ex.: fulano.silva).';
+	if (!res.ok) {
+		const txt = await res.text().catch(() => '');
+		throw new Error(`Login Citsmart ${res.status} – ${txt.slice(0, 120)}`);
 	}
 
-	/* --- aguardando login --- */
-	if (sess.state === STATES.WAIT_LOGIN) {
-		const login = text.trim().toLowerCase();
-		const user = await findUserByLogin(login);
-
-		if (!user) return '⚠️ Login não localizado. Tente novamente (ex.: fulano.silva).';
-
-		set(from, { state: STATES.WAIT_DESC, user });
-
-		return (
-			`Usuário localizado: *${user.nomeCompleto ?? user.nome}*.\n` +
-			'Descreva o problema que gostaria de abrir como chamado.'
-		);
-	}
-
-	/* --- aguardando descrição --- */
-	if (sess.state === STATES.WAIT_DESC) {
-		const desc = text.trim();
-
-		if (desc.length < 8) return 'Descreva com um pouco mais de detalhes, por favor.';
-
-		try {
-			const ticketId = await openTicket({
-				requesterId: sess.user.idempregado,
-				description: desc,
-			});
-
-			clear(from);
-
-			return [
-				`✅ Ticket aberto com sucesso! Nº: *${ticketId}*`,
-				'',
-				'Posso ajudar em algo mais? (Digite 1, 2 ou 3 para voltar ao menu.)',
-			].join('\n');
-		} catch (e) {
-			console.error('erro criar ticket', e);
-
-			clear(from);
-
-			return '😔 Ocorreu um erro ao abrir o ticket. Tente novamente mais tarde.';
-		}
-	}
-
-	// fallback
-	clear(from);
-
-	return (
-		'Algo saiu do fluxo. Vamos começar de novo.\n' +
-		require('./mainMenu.js').menu()
+	/* --- extrai cookies da resposta --- */
+	const setCookies = res.headers.getSetCookie?.() || res.headers.raw()['set-cookie'] || [];
+	const jsess = setCookies.find((c) =>
+		c.toLowerCase().startsWith('jsessionid='),
 	);
+	const auth = setCookies.find((c) =>
+		c.toLowerCase().startsWith('auth-token='),
+	);
+
+	if (!jsess) throw new Error('JSESSIONID não veio no Set-Cookie');
+
+	cachedCookie = [jsess.split(';')[0], auth?.split(';')[0]]
+		.filter(Boolean)
+		.join('; ');
+	cookieExp = Date.now() + 10 * 60 * 1000; // 10 min (ajuste se souber TTL)
+
+	return cachedCookie;
+}
+
+/* monta headers com os cookies */
+function authHeaders(cookieStr) {
+	return {
+		'Content-Type': 'application/json',
+		Cookie: cookieStr,
+	};
+}
+
+/* ---------- CONSULTAR USUÁRIO ---------- */
+export async function findUserByLogin(login) {
+	const cookie = await ensureCookies();
+
+	const res = await fetch(
+		`${BASE}/lowcode/rest/dynamic/integracoes/consultas/list`,
+		{
+			method: 'POST',
+			headers: authHeaders(cookie),
+			body: JSON.stringify({
+				SQLName: 'consulta_usuario_login',
+				dynamicModel: { login },
+			}),
+		},
+	);
+
+	if (!res.ok) return null;
+
+	const data = await res.json();
+
+	return Array.isArray(data) && data.length ? data[0] : null; // tem idempregado
+}
+
+/* ---------- ABRIR TICKET ---------- */
+export async function openTicket({ requesterId, description }) {
+	const cookie = await ensureCookies();
+
+	const body = {
+		requesterId,
+		activityId: ACTIVITY_ID,
+		contractId: CONTRACT_ID,
+		description,
+		builderObjects: {},
+	};
+
+	const res = await fetch(
+		`${BASE}/${PROVIDER_BASE}/webmvc/servicerequestincident/create`,
+		{
+			method: 'POST',
+			headers: authHeaders(cookie),
+			body: JSON.stringify(body),
+		},
+	);
+
+	if (!res.ok) throw new Error(`Criar ticket ${res.status}`);
+
+	const json = await res.json();
+
+	return json.idSolicitacaoServico ?? json.id ?? '???';
 }
