@@ -2,6 +2,8 @@ const BASE = process.env.CITSMART_BASE;
 const PROVIDER_BASE = process.env.CITSMART_PROVIDER_BASE;
 const USER = process.env.CITSMART_USER; 
 const PASS = process.env.CITSMART_PASS; 
+const ACTIVITY_ID = process.env.ACTIVITY_ID; 
+const CONTRACT_ID = process.env.CONTRACT_ID; 
 const CLIENT = 'Ativo';
 const LANG = 'pt_BR';
 
@@ -57,7 +59,7 @@ export async function findUserByLogin(login) {
 
 	const data = await res.json();
 
-	return data?.[0] ?? null; 
+	return Array.isArray(data) && data.length ? data[0] : null;
 }
 
 /* --- abrir ticket --- */
@@ -65,8 +67,8 @@ export async function openTicket({ requesterId, description }) {
 	const token = await ensureToken();
 	const body = {
 		requesterId,
-		activityId: 4908,
-		contractId: 1,
+		activityId: ACTIVITY_ID,
+		contractId: CONTRACT_ID,
 		description,
 		builderObjects: {},
 	};

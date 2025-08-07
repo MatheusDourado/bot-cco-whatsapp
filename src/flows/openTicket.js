@@ -12,7 +12,7 @@ export async function handle(from, text) {
 	/* --- início do fluxo --- */
 	if (!sess) {
 		set(from, { state: STATES.WAIT_LOGIN });
-		
+
 		return 'Informe apenas seu *login* de rede (ex.: fulano.silva).';
 	}
 
@@ -39,7 +39,7 @@ export async function handle(from, text) {
 
 		try {
 			const ticketId = await openTicket({
-				requesterId: sess.user.id,
+				requesterId: sess.user.idempregado,
 				description: desc,
 			});
 
