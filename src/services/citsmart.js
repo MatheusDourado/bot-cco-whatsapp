@@ -136,14 +136,14 @@ export async function findUserByLogin(login) {
 
 /* -------------------- ABRIR TICKET -------------------- */
 export async function openTicket({ requesterId, description }) {
-	const url = `${BASE}/${PROVIDER_BASE}/webmvc/servicerequestincident/create`;
+	const url = `${BASE}/${PROVIDER_BASE}/webmvc/servicerequestincident/create`; 
 	const body = {
 		requesterId,
 		activityId: ACTIVITY_ID,
 		contractId: CONTRACT_ID,
 		description,
 		builderObjects: {},
-	};
+	}; 
 
 	log('openTicket: req', { url, body });
 
