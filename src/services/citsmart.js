@@ -7,13 +7,13 @@ const CONTRACT_ID = process.env.CONTRACT_ID;
 const CLIENT = 'Ativo';
 const LANG = 'pt_BR';
 
-/* ------------ cache ------------ */
-let cookieJar = ''; // "JSESSIONID=...; AUTH-TOKEN=..."
-let cookieExp = 0;
+/* cache in-memory -------------------------------------------------------- */
+let sessionId = ''; // valor do <SessionID>
+let sessionExp = 0; // epoch ms de expiração (10 min)
 
-/* ------------ login (pega cookies) ------------ */
-async function ensureCookies() {
-	if (cookieJar && Date.now() < cookieExp - 60_000) return cookieJar;
+/* -------------------------- login / SessionID -------------------------- */
+async function ensureSession() {
+	if (sessionId && Date.now() < sessionExp - 60_000) return sessionId;
 
 	const res = await fetch(`${BASE}/${PROVIDER_BASE}/services/login`, {
 		method: 'POST',
@@ -34,40 +34,27 @@ async function ensureCookies() {
 		throw new Error(`Login Citsmart ${res.status} – ${txt.slice(0, 120)}`);
 	}
 
-	/* extrai Set-Cookie */
-	const rawCookies =
-		res.headers.getSetCookie?.() || 
-		res.headers.raw()['set-cookie'] || 
-		[];
-	const jsess = rawCookies.find((c) =>
-		c.toLowerCase().startsWith('jsessionid='),
-	);
-	const auth = rawCookies.find((c) =>
-		c.toLowerCase().startsWith('auth-token='),
-	);
+	const xml = await res.text();
+	const m = xml.match(/<SessionID>([^<]+)<\/SessionID>/i);
 
-	if (!jsess) throw new Error('JSESSIONID não veio no Set-Cookie');
+	if (!m) throw new Error('SessionID não encontrado no XML de login');
 
-	cookieJar = [jsess.split(';')[0], auth?.split(';')[0]]
-		.filter(Boolean)
-		.join('; ');
-	cookieExp = Date.now() + 10 * 60 * 1000; // 10 min (ajuste se preciso)
-
-	return cookieJar;
+	sessionId = m[1].trim();
+	sessionExp = Date.now() + 10 * 60 * 1000; // 10 min (ajuste se outro TTL)
+	return sessionId;
 }
 
-/* ------------ headers helper ------------ */
+/* monta headers com cookie JSESSIONID ----------------------------------- */
 function authHeaders() {
 	return {
 		'Content-Type': 'application/json',
-		Cookie: cookieJar, // JSESSIONID e AUTH-TOKEN
+		Cookie: `JSESSIONID=${sessionId}`,
 	};
 }
 
-/* ------------ consultar usuário ------------ */
+/* ----------------------- consultar usuário ----------------------------- */
 export async function findUserByLogin(login) {
-	await ensureCookies();
-
+	await ensureSession();
 	const res = await fetch(
 		`${BASE}/lowcode/rest/dynamic/integracoes/consultas/list`,
 		{
@@ -79,16 +66,17 @@ export async function findUserByLogin(login) {
 			}),
 		},
 	);
+
 	if (!res.ok) return null;
 
 	const data = await res.json();
 
-	return Array.isArray(data) && data.length ? data[0] : null; 
+	return Array.isArray(data) && data.length ? data[0] : null; // contém idempregado
 }
 
-/* ------------ abrir ticket ------------ */
+/* ----------------------- abrir ticket ---------------------------------- */
 export async function openTicket({ requesterId, description }) {
-	await ensureCookies();
+	await ensureSession();
 	const body = {
 		requesterId,
 		activityId: ACTIVITY_ID,
